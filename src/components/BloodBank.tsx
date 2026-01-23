@@ -79,7 +79,7 @@ export function BloodBank({ onNavigate }: BloodBankProps) {
 
     // Filter by division
     if (selectedDivision !== 'all') {
-      filtered = filtered.filter(d => d.location.division === selectedDivision);
+      filtered = filtered.filter(d => d.location?.division === selectedDivision);
     }
 
     // Sort by distance (nearest first)
@@ -135,12 +135,12 @@ export function BloodBank({ onNavigate }: BloodBankProps) {
         <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white">
           <MapPin className="w-8 h-8 mb-2" />
           <p className="text-green-100 mb-1">Your Location</p>
-          <p>{user.location.area}</p>
+          <p>{user.location?.area || 'Not set'}</p>
         </div>
         <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white">
           <User className="w-8 h-8 mb-2" />
           <p className="text-purple-100 mb-1">Your Blood</p>
-          <p>{user.bloodGroup}</p>
+          <p>{user.bloodGroup || 'Not set'}</p>
         </div>
       </div>
 
@@ -255,7 +255,7 @@ export function BloodBank({ onNavigate }: BloodBankProps) {
                         </div>
                         <div className="flex items-center space-x-2">
                           <MapPin className="w-4 h-4 text-gray-400" />
-                          <span>{donor.location.area}, {donor.location.district}, {donor.location.division}</span>
+                          <span>{donor.location?.area || 'Unknown'}, {donor.location?.district || 'Unknown'}, {donor.location?.division || 'Unknown'}</span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <Calendar className="w-4 h-4 text-gray-400" />
