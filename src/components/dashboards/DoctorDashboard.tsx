@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Users, Calendar, FileText, AlertCircle, CheckCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Users, Calendar, FileText, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import type { User } from '../../types';
 
 interface DoctorDashboardProps {
@@ -7,21 +7,73 @@ interface DoctorDashboardProps {
   onNavigate?: (page: string) => void;
 }
 
-// Mock data
-const MOCK_PATIENTS = [
-  { id: '1', name: 'Ahmed Khan', age: 35, lastVisit: '2025-12-12', condition: 'Fever', urgency: 'medium' as const },
-  { id: '2', name: 'Fatima Ahmed', age: 28, lastVisit: '2025-12-10', condition: 'Cough', urgency: 'low' as const },
-  { id: '3', name: 'Mohammad Ali', age: 45, lastVisit: '2025-12-08', condition: 'Hypertension', urgency: 'high' as const },
-];
-
-const MOCK_APPOINTMENTS_TODAY = [
-  { id: '1', patientName: 'Ahmed Khan', time: '10:00 AM', type: 'Video Call' },
-  { id: '2', patientName: 'Fatima Ahmed', time: '11:30 AM', type: 'In-Person' },
-  { id: '3', patientName: 'Mohammad Ali', time: '2:00 PM', type: 'Phone Call' },
-];
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001';
 
 export function DoctorDashboard({ user }: DoctorDashboardProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'patients' | 'appointments' | 'ai-insights'>('overview');
+  const [loading, setLoading] = useState(true);
+  const [doctorProfile, setDoctorProfile] = useState<any>(null);
+  const [healthReports, setHealthReports] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!user?._id) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // Fetch doctor's profile
+        const profileResponse = await fetch(`${API_BASE_URL}/api/users/${user._id}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          },
+        });
+
+        if (profileResponse.ok) {
+          const profileData = await profileResponse.json();
+          setDoctorProfile(profileData);
+        }
+
+        // Fetch health reports where this doctor is assigned
+        const reportsResponse = await fetch(`${API_BASE_URL}/api/health-reports?doctorId=${user._id}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          },
+        });
+
+        if (reportsResponse.ok) {
+          const reportsData = await reportsResponse.json();
+          setHealthReports(reportsData.reports || reportsData || []);
+        }
+      } catch (err) {
+        console.error('Error fetching doctor data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [user?._id]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
+  // Calculate real data from health reports
+  const MOCK_APPOINTMENTS_TODAY = healthReports.filter(r => 
+    r.reportType === 'appointment' && 
+    new Date(r.followUpDate).toDateString() === new Date().toDateString()
+  ).map(r => ({
+    id: r._id,
+    patientName: r.userId?.name || 'Patient',
+    time: new Date(r.followUpDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+    type: 'Consultation'
+  }));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">

@@ -1,16 +1,60 @@
-import { Activity, Calendar, FileText, Pill, TrendingUp, Clock, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Activity, Calendar, FileText, Pill, TrendingUp, Clock, AlertCircle, Loader2 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import type { Page } from '../App';
 
 interface DashboardProps {
   onNavigate: (page: Page) => void;
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001';
+
 export function Dashboard({ onNavigate }: DashboardProps) {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [healthReports, setHealthReports] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!user?._id) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/health-reports?userId=${user._id}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setHealthReports(data.reports || data || []);
+        }
+      } catch (err) {
+        console.error('Error fetching health reports:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [user?._id]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
   const stats = [
-    { label: 'Total Consultations', value: '8', icon: Activity, color: 'from-blue-500 to-blue-600' },
-    { label: 'Pending Appointments', value: '2', icon: Calendar, color: 'from-green-500 to-green-600' },
-    { label: 'Lab Reports', value: '5', icon: FileText, color: 'from-purple-500 to-purple-600' },
-    { label: 'Active Prescriptions', value: '3', icon: Pill, color: 'from-orange-500 to-orange-600' },
+    { label: 'Total Consultations', value: healthReports.filter(r => r.reportType === 'consultation').length.toString(), icon: Activity, color: 'from-blue-500 to-blue-600' },
+    { label: 'Pending Appointments', value: healthReports.filter(r => r.reportType === 'appointment' && new Date(r.followUpDate) > new Date()).length.toString(), icon: Calendar, color: 'from-green-500 to-green-600' },
+    { label: 'Lab Reports', value: healthReports.filter(r => r.reportType === 'lab').length.toString(), icon: FileText, color: 'from-purple-500 to-purple-600' },
+    { label: 'Active Prescriptions', value: healthReports.filter(r => r.reportType === 'prescription' && r.medicines?.length > 0).length.toString(), icon: Pill, color: 'from-orange-500 to-orange-600' },
   ];
 
   const recentActivities = [

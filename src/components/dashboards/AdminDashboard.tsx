@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Users, BarChart3, AlertCircle, CheckCircle, Activity, DollarSign } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Users, BarChart3, AlertCircle, CheckCircle, Activity, DollarSign, Loader2 } from 'lucide-react';
 import { LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import type { User } from '../../types';
 
@@ -8,34 +8,79 @@ interface AdminDashboardProps {
   onNavigate?: (page: string) => void;
 }
 
-// Mock data
-const ANALYTICS_DATA = [
-  { day: 'Mon', users: 120, consultations: 45, appointments: 32 },
-  { day: 'Tue', users: 150, consultations: 52, appointments: 38 },
-  { day: 'Wed', users: 140, consultations: 48, appointments: 35 },
-  { day: 'Thu', users: 180, consultations: 65, appointments: 48 },
-  { day: 'Fri', users: 200, consultations: 72, appointments: 52 },
-  { day: 'Sat', users: 220, consultations: 85, appointments: 60 },
-  { day: 'Sun', users: 190, consultations: 70, appointments: 50 },
-];
-
-const SYMPTOM_DATA = [
-  { name: 'Fever', value: 245 },
-  { name: 'Cough', value: 189 },
-  { name: 'Headache', value: 156 },
-  { name: 'Flu', value: 142 },
-  { name: 'Others', value: 268 },
-];
-
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001';
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
-
-const PENDING_DOCTORS = [
-  { id: '1', name: 'Dr. Hasib Ahmed', bmdc: '12345', specialization: 'Cardiologist', status: 'pending' },
-  { id: '2', name: 'Dr. Sarah Khan', bmdc: '12346', specialization: 'Neurologist', status: 'pending' },
-];
 
 export function AdminDashboard(_props: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'doctors' | 'ai-monitoring'>('overview');
+  const [loading, setLoading] = useState(true);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [allDoctors, setAllDoctors] = useState<any[]>([]);
+  const [healthReports, setHealthReports] = useState<any[]>([]);
+  const [softwareInfo, setSoftwareInfo] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [usersRes, doctorsRes, reportsRes, softwareRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/api/users?limit=1000`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` },
+          }),
+          fetch(`${API_BASE_URL}/api/doctors?limit=1000`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` },
+          }),
+          fetch(`${API_BASE_URL}/api/health-reports?limit=1000`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` },
+          }),
+          fetch(`${API_BASE_URL}/api/software-info`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('authToken')}` },
+          }),
+        ]);
+
+        if (usersRes.ok) {
+          const data = await usersRes.json();
+          setAllUsers(data.users || data || []);
+        }
+
+        if (doctorsRes.ok) {
+          const data = await doctorsRes.json();
+          setAllDoctors(data.doctors || data || []);
+        }
+
+        if (reportsRes.ok) {
+          const data = await reportsRes.json();
+          setHealthReports(data.reports || data || []);
+        }
+
+        if (softwareRes.ok) {
+          const data = await softwareRes.json();
+          setSoftwareInfo(data[0] || data);
+        }
+      } catch (err) {
+        console.error('Error fetching admin data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
+  const PENDING_DOCTORS = allDoctors.filter(d => !d.verified).slice(0, 10).map(d => ({
+    id: d._id,
+    name: d.name,
+    bmdc: d.licenseNumber,
+    specialization: d.specialization,
+    status: 'pending'
+  }));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
@@ -80,7 +125,7 @@ export function AdminDashboard(_props: AdminDashboardProps) {
                   <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">Total</span>
                 </div>
                 <h3 className="text-gray-600 text-sm font-medium mb-1">Total Users</h3>
-                <p className="text-3xl font-bold text-gray-900">2,847</p>
+                <p className="text-3xl font-bold text-gray-900">{allUsers.length.toLocaleString()}</p>
                 <p className="text-xs text-gray-500 mt-2">Patients, Doctors & Admins</p>
               </div>
 
@@ -92,7 +137,7 @@ export function AdminDashboard(_props: AdminDashboardProps) {
                   <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">Today</span>
                 </div>
                 <h3 className="text-gray-600 text-sm font-medium mb-1">Daily AI Consultations</h3>
-                <p className="text-3xl font-bold text-gray-900">245</p>
+                <p className="text-3xl font-bold text-gray-900">{healthReports.filter(r => r.reportType === 'consultation' && new Date(r.createdAt).toDateString() === new Date().toDateString()).length}</p>
                 <p className="text-xs text-gray-500 mt-2">Active consultations</p>
               </div>
 
