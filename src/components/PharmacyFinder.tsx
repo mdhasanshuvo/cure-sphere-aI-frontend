@@ -14,6 +14,9 @@ export function PharmacyFinder({ recommendedMedicines }: PharmacyFinderProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Ensure recommendedMedicines is always an array
+  const safeRecommendedMedicines = recommendedMedicines || [];
+
   // Fetch pharmacies from database
   useEffect(() => {
     const fetchPharmacies = async () => {
@@ -31,7 +34,7 @@ export function PharmacyFinder({ recommendedMedicines }: PharmacyFinderProps) {
             ? `${p.operatingHours.weekday?.open || '8:00 AM'} - ${p.operatingHours.weekday?.close || '10:00 PM'}`
             : '9:00 AM - 9:00 PM',
           distance: p.distance || Math.random() * 10,
-          stock: recommendedMedicines.map(m => ({
+          stock: safeRecommendedMedicines.map(m => ({
             ...m,
             available: Math.random() > 0.2,
             quantity: Math.floor(Math.random() * 50) + 10
@@ -55,7 +58,7 @@ export function PharmacyFinder({ recommendedMedicines }: PharmacyFinderProps) {
             hours: '8:00 AM - 11:00 PM',
             delivery: true,
             deliveryTime: '30 mins',
-            stock: recommendedMedicines.map(m => ({ ...m, available: true, quantity: Math.floor(Math.random() * 50) + 10 })),
+            stock: safeRecommendedMedicines.map(m => ({ ...m, available: true, quantity: Math.floor(Math.random() * 50) + 10 })),
           },
           {
             id: 2,
@@ -68,7 +71,7 @@ export function PharmacyFinder({ recommendedMedicines }: PharmacyFinderProps) {
             hours: '24 Hours',
             delivery: true,
             deliveryTime: '45 mins',
-            stock: recommendedMedicines.map(m => ({ ...m, available: Math.random() > 0.2, quantity: Math.floor(Math.random() * 30) + 5 })),
+            stock: safeRecommendedMedicines.map(m => ({ ...m, available: Math.random() > 0.2, quantity: Math.floor(Math.random() * 30) + 5 })),
           },
         ];
         setPharmacies(fallbackPharmacies);
@@ -78,7 +81,7 @@ export function PharmacyFinder({ recommendedMedicines }: PharmacyFinderProps) {
     };
     
     fetchPharmacies();
-  }, [recommendedMedicines]);
+  }, [safeRecommendedMedicines]);
 
   const areas = ['all', 'Dhanmondi', 'Gulshan', 'Uttara', 'Mirpur', 'Banani'];
 
@@ -134,11 +137,11 @@ export function PharmacyFinder({ recommendedMedicines }: PharmacyFinderProps) {
       </div>
 
       {/* Recommended Medicines Summary */}
-      {recommendedMedicines.length > 0 && (
+      {safeRecommendedMedicines.length > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-6">
           <h3 className="text-gray-900 mb-4">Recommended Medicines</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {recommendedMedicines.map((med, idx) => (
+            {safeRecommendedMedicines.map((med, idx) => (
               <div key={idx} className="bg-white rounded-lg p-3 border border-blue-100">
                 <div className="flex items-start justify-between mb-1">
                   <div>
