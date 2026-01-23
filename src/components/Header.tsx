@@ -47,9 +47,9 @@ export function Header({ currentPage, onNavigate }: HeaderProps) {
                   <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
                     <User className="w-6 h-6 text-white" />
                   </div>
-                  <div className="text-left hidden sm:block">
-                    <p className="text-gray-900">{user.name}</p>
-                    <p className="text-gray-500">{user.bloodGroup}</p>
+                  <div className="text-left">
+                    <p className="text-gray-900 font-semibold text-sm sm:text-base">{user.name}</p>
+                    <p className="text-gray-500 text-xs hidden sm:block">{user.bloodGroup}</p>
                   </div>
                 </button>
 
