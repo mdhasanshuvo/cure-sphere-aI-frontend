@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { User, Mail, Phone, MapPin, Calendar, Droplet, Ruler, Weight, Save, Edit2, CheckCircle, Heart } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { User, Mail, Phone, MapPin, Calendar, Droplet, Ruler, Weight, Save, Edit2, CheckCircle, Heart, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import type { Page } from '../App';
 
@@ -7,23 +7,76 @@ interface UserProfileProps {
   onNavigate: (page: Page) => void;
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001';
+
 export function UserProfile({ onNavigate }: UserProfileProps) {
   const { user, updateUser } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [profileData, setProfileData] = useState<any>(null);
   const [formData, setFormData] = useState({
-    name: user?.name || '',
-    phone: user?.phone || '',
-    height: user?.height.toString() || '',
-    weight: user?.weight.toString() || '',
-    division: user?.location.division || '',
-    district: user?.location.district || '',
-    area: user?.location.area || '',
-    medicalHistory: user?.medicalHistory || '',
-    allergies: user?.allergies || '',
-    isDonor: user?.isDonor || false,
-    lastDonationDate: user?.lastDonationDate || '',
+    name: '',
+    phone: '',
+    height: '',
+    weight: '',
+    division: '',
+    district: '',
+    area: '',
+    medicalHistory: '',
+    allergies: '',
+    isDonor: false,
+    lastDonationDate: '',
   });
+
+  // Fetch user profile from database on mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!user?._id) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const response = await fetch(`${API_BASE_URL}/api/users/${user._id}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch profile');
+        }
+
+        const data = await response.json();
+        setProfileData(data);
+        
+        // Initialize form data with database values
+        setFormData({
+          name: data.name || '',
+          phone: data.phone || '',
+          height: data.height?.toString() || '',
+          weight: data.weight?.toString() || '',
+          division: data.location?.division || '',
+          district: data.location?.district || '',
+          area: data.location?.area || '',
+          medicalHistory: data.medicalHistory || '',
+          allergies: data.allergies || '',
+          isDonor: data.isDonor || false,
+          lastDonationDate: data.lastDonationDate || '',
+        });
+      } catch (err) {
+        console.error('Error fetching profile:', err);
+        setError('Failed to load profile data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [user?._id]);
 
   if (!user) {
     return (
@@ -41,35 +94,93 @@ export function UserProfile({ onNavigate }: UserProfileProps) {
     );
   }
 
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="bg-white rounded-xl shadow-md p-8 text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-500" />
+          <p className="text-gray-600">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="bg-white rounded-xl shadow-md p-8 text-center">
+          <p className="text-red-600 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!profileData) {
+    return null;
+  }
+
   const handleChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setSaved(false);
   };
 
-  const handleSave = () => {
-    updateUser({
-      name: formData.name,
-      phone: formData.phone,
-      height: parseFloat(formData.height),
-      weight: parseFloat(formData.weight),
-      location: {
-        division: formData.division,
-        district: formData.district,
-        area: formData.area,
-      },
-      medicalHistory: formData.medicalHistory,
-      allergies: formData.allergies,
-      isDonor: formData.isDonor,
-      lastDonationDate: formData.lastDonationDate,
-    });
-    setIsEditing(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+  const handleSave = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      const updatedData = {
+        name: formData.name,
+        phone: formData.phone,
+        height: parseFloat(formData.height),
+        weight: parseFloat(formData.weight),
+        location: {
+          division: formData.division,
+          district: formData.district,
+          area: formData.area,
+        },
+        medicalHistory: formData.medicalHistory,
+        allergies: formData.allergies,
+        isDonor: formData.isDonor,
+        lastDonationDate: formData.lastDonationDate,
+      };
+
+      // Update in database
+      await updateUser(updatedData);
+      
+      // Refresh profile data from database
+      const response = await fetch(`${API_BASE_URL}/api/users/${user._id}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setProfileData(data);
+      }
+
+      setIsEditing(false);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      console.error('Error saving profile:', err);
+      setError('Failed to save profile. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const calculateAge = () => {
+    if (!profileData.birthdate) return 0;
     const today = new Date();
-    const birthDate = new Date(user.birthdate);
+    const birthDate = new Date(profileData.birthdate);
     let age = today.getFullYear() - birthDate.getFullYear();
     const m = today.getMonth() - birthDate.getMonth();
     if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
@@ -79,8 +190,9 @@ export function UserProfile({ onNavigate }: UserProfileProps) {
   };
 
   const calculateBMI = () => {
-    const heightInMeters = user.height / 100;
-    const bmi = user.weight / (heightInMeters * heightInMeters);
+    if (!profileData.height || !profileData.weight) return 0;
+    const heightInMeters = profileData.height / 100;
+    const bmi = profileData.weight / (heightInMeters * heightInMeters);
     return bmi.toFixed(1);
   };
 
@@ -146,7 +258,7 @@ export function UserProfile({ onNavigate }: UserProfileProps) {
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
                     type="email"
-                    value={user.email}
+                    value={profileData.email}
                     disabled
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg bg-gray-50"
                   />
@@ -173,7 +285,7 @@ export function UserProfile({ onNavigate }: UserProfileProps) {
                   <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
                     type="text"
-                    value={user.birthdate}
+                    value={profileData.birthdate || 'Not set'}
                     disabled
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg bg-gray-50"
                   />
@@ -186,7 +298,7 @@ export function UserProfile({ onNavigate }: UserProfileProps) {
                   <Droplet className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
                     type="text"
-                    value={user.bloodGroup}
+                    value={profileData.bloodGroup || 'Not set'}
                     disabled
                     className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg bg-gray-50"
                   />
@@ -346,17 +458,17 @@ export function UserProfile({ onNavigate }: UserProfileProps) {
                 onClick={() => {
                   setIsEditing(false);
                   setFormData({
-                    name: user.name,
-                    phone: user.phone,
-                    height: user.height.toString(),
-                    weight: user.weight.toString(),
-                    division: user.location.division,
-                    district: user.location.district,
-                    area: user.location.area,
-                    medicalHistory: user.medicalHistory || '',
-                    allergies: user.allergies || '',
-                    isDonor: user.isDonor,
-                    lastDonationDate: user.lastDonationDate || '',
+                    name: profileData.name || '',
+                    phone: profileData.phone || '',
+                    height: profileData.height?.toString() || '',
+                    weight: profileData.weight?.toString() || '',
+                    division: profileData.location?.division || '',
+                    district: profileData.location?.district || '',
+                    area: profileData.location?.area || '',
+                    medicalHistory: profileData.medicalHistory || '',
+                    allergies: profileData.allergies || '',
+                    isDonor: profileData.isDonor || false,
+                    lastDonationDate: profileData.lastDonationDate || '',
                   });
                 }}
                 className="flex-1 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
@@ -391,7 +503,7 @@ export function UserProfile({ onNavigate }: UserProfileProps) {
               </div>
               <div className="p-4 bg-purple-50 rounded-lg">
                 <p className="text-gray-600 mb-1">Blood Group</p>
-                <p className="text-gray-900">{user.bloodGroup}</p>
+                <p className="text-gray-900">{profileData.bloodGroup || 'Not set'}</p>
               </div>
             </div>
           </div>
