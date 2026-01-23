@@ -2,7 +2,9 @@
  * Enhanced API Service with MongoDB endpoints
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api';
+// Ensure API base URL always includes /api
+const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001';
+const API_BASE_URL = baseUrl.endsWith('/api') ? baseUrl : `${baseUrl}/api`;
 
 /**
  * Make API request with error handling
