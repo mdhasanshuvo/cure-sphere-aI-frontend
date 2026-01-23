@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Activity,
   Calendar,
@@ -11,52 +11,101 @@ import {
   Pill,
   Stethoscope,
   Upload,
-  ArrowRight
+  ArrowRight,
+  Loader2
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import type { Page } from '../../App';
 
 interface PatientDashboardProps {
   onNavigate: (page: Page) => void;
 }
 
-export function PatientDashboard({ onNavigate }: PatientDashboardProps) {
-  const [showAIChat, setShowAIChat] = useState(false);
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001';
 
-  // Mock data - will be replaced with API calls
+export function PatientDashboard({ onNavigate }: PatientDashboardProps) {
+  const { user } = useAuth();
+  const [showAIChat, setShowAIChat] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [profileData, setProfileData] = useState<any>(null);
+  const [healthReports, setHealthReports] = useState<any[]>([]);
+
+  // Fetch user profile and health reports from database
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      if (!user?._id) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        
+        // Fetch user profile
+        const profileResponse = await fetch(`${API_BASE_URL}/api/users/${user._id}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          },
+        });
+
+        if (profileResponse.ok) {
+          const profileData = await profileResponse.json();
+          setProfileData(profileData);
+        }
+
+        // Fetch health reports for this user
+        const reportsResponse = await fetch(`${API_BASE_URL}/api/health-reports?userId=${user._id}&limit=10`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          },
+        });
+
+        if (reportsResponse.ok) {
+          const reportsData = await reportsResponse.json();
+          setHealthReports(reportsData.reports || reportsData || []);
+        }
+      } catch (err) {
+        console.error('Error fetching dashboard data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [user?._id]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
+  // Calculate stats from real data
   const stats = {
-    activeSymptoms: 2,
-    nextAppointment: 'Dec 15, 10:00 AM',
-    pendingReports: 1,
-    healthScore: 85
+    activeSymptoms: healthReports.filter(r => r.reportType === 'consultation' && r.symptoms?.length > 0).length,
+    nextAppointment: healthReports.find(r => r.reportType === 'appointment' && new Date(r.followUpDate) > new Date())?.followUpDate || 'None scheduled',
+    pendingReports: healthReports.filter(r => r.reportType === 'lab').length,
+    healthScore: profileData?.height && profileData?.weight ? 
+      Math.min(100, Math.max(0, 100 - Math.abs(25 - (profileData.weight / Math.pow(profileData.height / 100, 2))) * 5)) : 85
   };
 
-  const recentTimeline = [
-    {
-      id: '1',
-      type: 'ai_consultation' as const,
-      date: 'Dec 12, 2025 - 10:30 AM',
-      title: 'AI Consultation',
-      description: 'Fever, Body ache',
-      urgency: 'medium' as const,
-      followUpDate: 'Dec 15, 2025'
-    },
-    {
-      id: '2',
-      type: 'lab_report' as const,
-      date: 'Dec 10, 2025 - 2:00 PM',
-      title: 'CBC Report',
-      description: '2 abnormal markers detected',
-      urgency: 'medium' as const
-    },
-    {
-      id: '3',
-      type: 'prescription' as const,
-      date: 'Dec 05, 2025 - 11:00 AM',
-      title: 'Doctor Prescription',
-      description: 'Dr. Sarah Ahmed - Antibiotics',
-      urgency: 'low' as const
-    }
-  ];
+  const recentTimeline = healthReports.slice(0, 5).map(report => ({
+    id: report._id,
+    type: report.reportType,
+    date: new Date(report.createdAt).toLocaleString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    }),
+    title: report.title || `${report.reportType.charAt(0).toUpperCase() + report.reportType.slice(1)}`,
+    description: report.description || report.diagnosis || (report.symptoms?.join(', ') || 'No details'),
+    urgency: report.tests?.some((t: any) => t.status === 'abnormal') ? 'high' : 'low',
+    followUpDate: report.followUpDate ? new Date(report.followUpDate).toLocaleDateString() : undefined
+  }));
 
   const getTypeIcon = (type: string) => {
     switch (type) {
