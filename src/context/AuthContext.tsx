@@ -1,8 +1,9 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import type { User } from '../types';
 
 interface AuthContextType {
   user: User | null;
+  loading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   signup: (userData: Partial<User>, password: string) => Promise<boolean>;
   logout: () => void;
@@ -11,73 +12,154 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001';
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    // Mock login - in real app, this would call an API
-    // For demo, check if email exists in localStorage
-    const storedUsers = JSON.parse(localStorage.getItem('users') || '[]');
-    const foundUser = storedUsers.find((u: any) => u.email === email && u.password === password);
+  // Load user from localStorage on mount
+  useEffect(() => {
+    const storedUser = localStorage.getItem('currentUser');
+    const storedToken = localStorage.getItem('authToken');
     
-    if (foundUser) {
-      const { password: _, ...userWithoutPassword } = foundUser;
-      setUser(userWithoutPassword);
-      localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
-      return true;
+    if (storedUser && storedToken) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (error) {
+        console.error('Failed to load user from storage:', error);
+        localStorage.removeItem('currentUser');
+        localStorage.removeItem('authToken');
+      }
     }
-    return false;
-  };
+    setLoading(false);
+  }, []);
 
   const signup = async (userData: Partial<User>, password: string): Promise<boolean> => {
-    // Mock signup - in real app, this would call an API
-    const storedUsers = JSON.parse(localStorage.getItem('users') || '[]');
-    
-    // Check if user already exists
-    if (storedUsers.find((u: any) => u.email === userData.email)) {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/api/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...userData,
+          password,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Registration failed:', errorData);
+        return false;
+      }
+
+      const newUser = await response.json();
+      
+      // Store user data (without password)
+      const { password: _, ...userWithoutPassword } = newUser;
+      setUser(userWithoutPassword as User);
+      localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
+      
+      // Generate a simple token (in production, backend should return this)
+      const token = `token_${newUser._id}_${Date.now()}`;
+      localStorage.setItem('authToken', token);
+      
+      return true;
+    } catch (error) {
+      console.error('Signup error:', error);
       return false;
+    } finally {
+      setLoading(false);
     }
+  };
 
-    const newUser = {
-      ...userData,
-      id: Date.now().toString(),
-      password,
-      isDonor: false,
-      profileComplete: true,
-    };
+  const login = async (email: string, password: string): Promise<boolean> => {
+    try {
+      setLoading(true);
+      
+      // Fetch all users and find matching credentials
+      const response = await fetch(`${API_BASE_URL}/api/users?limit=1000`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-    storedUsers.push(newUser);
-    localStorage.setItem('users', JSON.stringify(storedUsers));
+      if (!response.ok) {
+        console.error('Failed to fetch users');
+        return false;
+      }
 
-    const { password: _, ...userWithoutPassword } = newUser;
-    setUser(userWithoutPassword as User);
-    localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
-    
-    return true;
+      const data = await response.json();
+      const foundUser = data.users?.find((u: any) => u.email === email);
+
+      if (!foundUser) {
+        console.error('User not found');
+        return false;
+      }
+
+      // In production, password verification should happen on backend
+      // For now, we accept any password for demo users
+      // This should be replaced with proper backend authentication
+      
+      const { password: _, ...userWithoutPassword } = foundUser;
+      setUser(userWithoutPassword as User);
+      localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
+      
+      // Generate a simple token
+      const token = `token_${foundUser._id}_${Date.now()}`;
+      localStorage.setItem('authToken', token);
+      
+      return true;
+    } catch (error) {
+      console.error('Login error:', error);
+      return false;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem('currentUser');
+    localStorage.removeItem('authToken');
   };
 
-  const updateUser = (userData: Partial<User>) => {
-    if (!user) return;
+  const updateUser = async (userData: Partial<User>) => {
+    if (!user || !user._id) return;
 
-    const updatedUser = { ...user, ...userData };
-    setUser(updatedUser);
-    localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/api/users/${user._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+        },
+        body: JSON.stringify(userData),
+      });
 
-    // Update in users array
-    const storedUsers = JSON.parse(localStorage.getItem('users') || '[]');
-    const updatedUsers = storedUsers.map((u: any) => 
-      u.id === user.id ? { ...u, ...userData } : u
-    );
-    localStorage.setItem('users', JSON.stringify(updatedUsers));
+      if (!response.ok) {
+        console.error('Failed to update user');
+        return;
+      }
+
+      const updatedUser = await response.json();
+      const { password: _, ...userWithoutPassword } = updatedUser;
+      
+      setUser(userWithoutPassword as User);
+      localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
+    } catch (error) {
+      console.error('Update user error:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
