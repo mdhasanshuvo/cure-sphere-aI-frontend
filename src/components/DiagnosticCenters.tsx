@@ -13,6 +13,9 @@ export function DiagnosticCenters({ recommendedTests }: DiagnosticCentersProps) 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Ensure recommendedTests is always an array
+  const safeRecommendedTests = recommendedTests || [];
+
   // Fetch diagnostic centers (hospitals) from database
   useEffect(() => {
     const fetchCenters = async () => {
@@ -33,7 +36,7 @@ export function DiagnosticCenters({ recommendedTests }: DiagnosticCentersProps) 
           discount: Math.floor(Math.random() * 20) + 10,
           homeSample: true,
           homeSampleFee: 150 + Math.floor(Math.random() * 100),
-          tests: recommendedTests.map(t => ({
+          tests: safeRecommendedTests.map(t => ({
             ...t,
             available: true,
             discountedPrice: t.price * 0.85
@@ -58,7 +61,7 @@ export function DiagnosticCenters({ recommendedTests }: DiagnosticCentersProps) 
             discount: 15,
             homeSample: true,
             homeSampleFee: 200,
-            tests: recommendedTests.map(t => ({ ...t, available: true, discountedPrice: t.price * 0.85 })),
+            tests: safeRecommendedTests.map(t => ({ ...t, available: true, discountedPrice: t.price * 0.85 })),
           },
         ];
         setDiagnosticCenters(fallbackCenters);
@@ -68,7 +71,7 @@ export function DiagnosticCenters({ recommendedTests }: DiagnosticCentersProps) 
     };
     
     fetchCenters();
-  }, [recommendedTests]);
+  }, [safeRecommendedTests]);
 
   const areas = ['all', 'Dhanmondi', 'Gulshan', 'Panthapath', 'Green Road'];
 
@@ -116,11 +119,11 @@ export function DiagnosticCenters({ recommendedTests }: DiagnosticCentersProps) 
       </div>
 
       {/* Recommended Tests Summary */}
-      {recommendedTests.length > 0 && (
+      {safeRecommendedTests.length > 0 && (
         <div className="bg-purple-50 border border-purple-200 rounded-xl p-6 mb-6">
           <h3 className="text-gray-900 mb-4">AI-Recommended Diagnostic Tests</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-            {recommendedTests.map((test, idx) => (
+            {safeRecommendedTests.map((test, idx) => (
               <div key={idx} className="bg-white rounded-lg p-4 border border-purple-100">
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex-1">
