@@ -46,9 +46,6 @@ export function DiagnosticCenters({ recommendedTests }: DiagnosticCentersProps) 
         setError('Failed to load diagnostic centers. Using sample data.');
         // Fallback to sample data
         const fallbackCenters = [
-    {
-        // Fallback to sample data
-        const fallbackCenters = [
           {
             id: 1,
             name: 'Popular Diagnostic Centre',

@@ -44,11 +44,6 @@ export function PharmacyFinder({ recommendedMedicines }: PharmacyFinderProps) {
         setError('Failed to load pharmacies. Using sample data.');
         // Fallback to sample data
         const fallbackPharmacies = [
-    {
-      id: 1,
-      name: 'Lazz Pharma',
-        // Fallback to sample data
-        const fallbackPharmacies = [
           {
             id: 1,
             name: 'Lazz Pharma',

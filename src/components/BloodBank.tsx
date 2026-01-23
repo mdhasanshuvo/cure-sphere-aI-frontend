@@ -288,9 +288,9 @@ export function BloodBank({ onNavigate }: BloodBankProps) {
                 </div>
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          ))
+        ) : null}
+      </div>
 
       {/* Show loading state */}
       {loading && (
