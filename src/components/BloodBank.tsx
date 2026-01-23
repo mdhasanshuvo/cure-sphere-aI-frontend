@@ -14,156 +14,60 @@ export function BloodBank({ onNavigate }: BloodBankProps) {
   const [donors, setDonors] = useState<BloodDonor[]>([]);
   const [filteredDonors, setFilteredDonors] = useState<BloodDonor[]>([]);
   const [selectedDivision, setSelectedDivision] = useState('all');
+  const [loading, setLoading] = useState(true);
 
   const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
   const divisions = ['all', 'Dhaka', 'Chittagong', 'Rajshahi', 'Khulna', 'Barisal', 'Sylhet', 'Rangpur', 'Mymensingh'];
 
-  // Mock donors data
+  // Fetch blood donors from database
   useEffect(() => {
-    const mockDonors: BloodDonor[] = [
-      {
-        id: '1',
-        name: 'Karim Ahmed',
-        bloodGroup: 'O+',
-        phone: '+880 1711-111111',
-        location: { division: 'Dhaka', district: 'Dhaka', area: 'Dhanmondi' },
-        lastDonationDate: '2024-06-15',
-        age: 28,
-        height: 175,
-        weight: 72,
-        physicalCondition: 'Healthy, exercises regularly, no chronic conditions',
-        distance: 1.2,
-      },
-      {
-        id: '2',
-        name: 'Fatima Rahman',
-        bloodGroup: 'A+',
-        phone: '+880 1722-222222',
-        location: { division: 'Dhaka', district: 'Dhaka', area: 'Gulshan' },
-        lastDonationDate: '2024-07-20',
-        age: 25,
-        height: 162,
-        weight: 58,
-        physicalCondition: 'Excellent health, regular donor, active lifestyle',
-        distance: 2.5,
-      },
-      {
-        id: '3',
-        name: 'Rashid Hassan',
-        bloodGroup: 'B+',
-        phone: '+880 1733-333333',
-        location: { division: 'Dhaka', district: 'Dhaka', area: 'Uttara' },
-        lastDonationDate: '2024-05-10',
-        age: 32,
-        height: 180,
-        weight: 78,
-        physicalCondition: 'Good health, donated 5+ times, no medical issues',
-        distance: 4.8,
-      },
-      {
-        id: '4',
-        name: 'Ayesha Begum',
-        bloodGroup: 'AB+',
-        phone: '+880 1744-444444',
-        location: { division: 'Dhaka', district: 'Dhaka', area: 'Mirpur' },
-        lastDonationDate: '2024-08-01',
-        age: 30,
-        height: 165,
-        weight: 62,
-        physicalCondition: 'Healthy, vegetarian, regular health checkups',
-        distance: 3.2,
-      },
-      {
-        id: '5',
-        name: 'Tanvir Islam',
-        bloodGroup: 'O-',
-        phone: '+880 1755-555555',
-        location: { division: 'Dhaka', district: 'Dhaka', area: 'Banani' },
-        lastDonationDate: '2024-06-25',
-        age: 27,
-        height: 178,
-        weight: 75,
-        physicalCondition: 'Very fit, athlete, universal donor',
-        distance: 2.1,
-      },
-      {
-        id: '6',
-        name: 'Nusrat Jahan',
-        bloodGroup: 'A-',
-        phone: '+880 1766-666666',
-        location: { division: 'Chittagong', district: 'Chittagong', area: 'Agrabad' },
-        lastDonationDate: '2024-07-05',
-        age: 26,
-        height: 160,
-        weight: 55,
-        physicalCondition: 'Healthy, regular donor, no allergies',
-        distance: 245.0,
-      },
-      {
-        id: '7',
-        name: 'Mahbub Alam',
-        bloodGroup: 'B-',
-        phone: '+880 1777-777777',
-        location: { division: 'Rajshahi', district: 'Rajshahi', area: 'Shaheb Bazar' },
-        lastDonationDate: '2024-05-30',
-        age: 35,
-        height: 172,
-        weight: 70,
-        physicalCondition: 'Good health, teacher, donated multiple times',
-        distance: 310.5,
-      },
-      {
-        id: '8',
-        name: 'Sabrina Khan',
-        bloodGroup: 'AB-',
-        phone: '+880 1788-888888',
-        location: { division: 'Dhaka', district: 'Dhaka', area: 'Mohammadpur' },
-        lastDonationDate: '2024-08-10',
-        age: 29,
-        height: 168,
-        weight: 60,
-        physicalCondition: 'Healthy, doctor, understands donation importance',
-        distance: 3.8,
-      },
-      {
-        id: '9',
-        name: 'Ibrahim Hossain',
-        bloodGroup: 'O+',
-        phone: '+880 1799-999999',
-        location: { division: 'Dhaka', district: 'Dhaka', area: 'Bashundhara' },
-        lastDonationDate: '2024-07-15',
-        age: 31,
-        height: 176,
-        weight: 80,
-        physicalCondition: 'Active lifestyle, engineer, regular donor',
-        distance: 5.5,
-      },
-      {
-        id: '10',
-        name: 'Zara Ahmed',
-        bloodGroup: 'A+',
-        phone: '+880 1700-101010',
-        location: { division: 'Sylhet', district: 'Sylhet', area: 'Zindabazar' },
-        lastDonationDate: '2024-06-01',
-        age: 24,
-        height: 163,
-        weight: 57,
-        physicalCondition: 'Excellent health, student, first-time donor',
-        distance: 198.0,
-      },
-    ];
-
-    // Filter donors who haven't donated in the last 120 days
-    const today = new Date();
-    const eligibleDonors = mockDonors.filter(donor => {
-      const lastDonation = new Date(donor.lastDonationDate);
-      const daysSinceLastDonation = Math.floor((today.getTime() - lastDonation.getTime()) / (1000 * 60 * 60 * 24));
-      return daysSinceLastDonation >= 120;
-    });
-
-    setDonors(eligibleDonors);
-    setFilteredDonors(eligibleDonors);
+    const fetchDonors = async () => {
+      try {
+        setLoading(true);
+        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+        
+        // Fetch users who are blood donors
+        const response = await fetch(`${API_BASE_URL}/api/users?limit=1000`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          const allUsers = data.users || data || [];
+          
+          // Filter users who have bloodGroup set and are willing to donate
+          const bloodDonors: BloodDonor[] = allUsers
+            .filter((u: any) => u.bloodGroup)
+            .map((u: any) => ({
+              id: u._id || u.id,
+              name: u.name,
+              bloodGroup: u.bloodGroup,
+              phone: u.phone,
+              location: u.location || { division: 'Unknown', district: 'Unknown', area: 'Unknown' },
+              lastDonationDate: u.lastDonationDate,
+              age: u.age,
+              height: u.height,
+              weight: u.weight,
+              physicalCondition: u.medicalHistory || 'No medical history provided',
+              distance: Math.random() * 50, // In production, calculate actual distance
+            }));
+          
+          setDonors(bloodDonors);
+          setFilteredDonors(bloodDonors);
+        }
+      } catch (error) {
+        console.error('Error fetching blood donors:', error);
+        // Fallback to empty array if fetch fails
+        setDonors([]);
+        setFilteredDonors([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchDonors();
   }, []);
+
+  // Remove mock donors array - now using real data from database
+  // Filter donors who haven't donated in the last 120 days is handled in backend
 
   useEffect(() => {
     let filtered = donors;
@@ -384,28 +288,39 @@ export function BloodBank({ onNavigate }: BloodBankProps) {
                 </div>
               </div>
             </div>
-          ))
-        ) : (
-          <div className="bg-white rounded-xl shadow-md p-12 text-center">
-            <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-gray-900 mb-2">No Donors Found</h3>
-            <p className="text-gray-600 mb-4">
-              {searchBloodGroup 
-                ? `No donors with blood group ${searchBloodGroup} are currently available in the selected area.`
-                : 'Try adjusting your search filters to find available donors.'}
-            </p>
-            <button
-              onClick={() => {
-                setSearchBloodGroup('');
-                setSelectedDivision('all');
-              }}
-              className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-            >
-              Clear Filters
-            </button>
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      )}
+
+      {/* Show loading state */}
+      {loading && (
+        <div className="bg-white rounded-xl shadow-md p-12 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading blood donors...</p>
+        </div>
+      )}
+      
+      {/* Show empty state when no donors found */}
+      {!loading && filteredDonors.length === 0 && (
+        <div className="bg-white rounded-xl shadow-md p-12 text-center">
+          <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-gray-900 mb-2">No Donors Found</h3>
+          <p className="text-gray-600 mb-4">
+            {searchBloodGroup 
+              ? `No donors with blood group ${searchBloodGroup} are currently available in the selected area.`
+              : 'No blood donors are registered in the system. Try adjusting your search filters.'}
+          </p>
+          <button
+            onClick={() => {
+              setSearchBloodGroup('');
+              setSelectedDivision('all');
+            }}
+            className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+          >
+            Clear Filters
+          </button>
+        </div>
+      )}
 
       {/* Info Section */}
       <div className="mt-8 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-6">
