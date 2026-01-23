@@ -55,16 +55,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return false;
       }
 
-      const newUser = await response.json();
+      const data = await response.json();
       
       // Store user data (without password)
-      const { password: _, ...userWithoutPassword } = newUser;
-      setUser(userWithoutPassword as User);
-      localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
-      
-      // Generate a simple token (in production, backend should return this)
-      const token = `token_${newUser._id}_${Date.now()}`;
-      localStorage.setItem('authToken', token);
+      setUser(data.user as User);
+      localStorage.setItem('currentUser', JSON.stringify(data.user));
+      localStorage.setItem('authToken', data.token);
       
       return true;
     } catch (error) {
@@ -79,38 +75,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true);
       
-      // Fetch all users and find matching credentials
-      const response = await fetch(`${API_BASE_URL}/api/users?limit=1000`, {
-        method: 'GET',
+      // Use proper login endpoint with password verification
+      const response = await fetch(`${API_BASE_URL}/api/users/login`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ email, password }),
       });
 
       if (!response.ok) {
-        console.error('Failed to fetch users');
+        const errorData = await response.json();
+        console.error('Login failed:', errorData.error);
         return false;
       }
 
       const data = await response.json();
-      const foundUser = data.users?.find((u: any) => u.email === email);
-
-      if (!foundUser) {
-        console.error('User not found');
-        return false;
-      }
-
-      // In production, password verification should happen on backend
-      // For now, we accept any password for demo users
-      // This should be replaced with proper backend authentication
       
-      const { password: _, ...userWithoutPassword } = foundUser;
-      setUser(userWithoutPassword as User);
-      localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
-      
-      // Generate a simple token
-      const token = `token_${foundUser._id}_${Date.now()}`;
-      localStorage.setItem('authToken', token);
+      // Store user data and token
+      setUser(data.user as User);
+      localStorage.setItem('currentUser', JSON.stringify(data.user));
+      localStorage.setItem('authToken', data.token);
       
       return true;
     } catch (error) {

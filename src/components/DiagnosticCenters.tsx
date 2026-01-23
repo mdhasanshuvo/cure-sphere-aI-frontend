@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Building2, MapPin, Phone, Clock, Star, Tag, Home, Calendar, ChevronDown, Search } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Building2, MapPin, Phone, Clock, Star, Tag, Home, Calendar, ChevronDown, Search, Loader2 } from 'lucide-react';
+import { hospitals as hospitalsAPI } from '../services/mongoApi';
 
 interface DiagnosticCentersProps {
   recommendedTests: any[];
@@ -8,103 +9,69 @@ interface DiagnosticCentersProps {
 export function DiagnosticCenters({ recommendedTests }: DiagnosticCentersProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedArea, setSelectedArea] = useState('all');
+  const [diagnosticCenters, setDiagnosticCenters] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const diagnosticCenters = [
+  // Fetch diagnostic centers (hospitals) from database
+  useEffect(() => {
+    const fetchCenters = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await hospitalsAPI.getAll(1, 100);
+        const fetchedCenters = response.hospitals || [];
+        
+        // Transform hospital data to diagnostic center format
+        const centersWithTests = fetchedCenters.map((h: any) => ({
+          ...h,
+          area: h.location?.area || 'Unknown',
+          hours: h.operatingHours?.weekday 
+            ? `${h.operatingHours.weekday.open} - ${h.operatingHours.weekday.close}`
+            : '8:00 AM - 10:00 PM',
+          distance: h.distance || Math.random() * 10,
+          discount: Math.floor(Math.random() * 20) + 10,
+          homeSample: true,
+          homeSampleFee: 150 + Math.floor(Math.random() * 100),
+          tests: recommendedTests.map(t => ({
+            ...t,
+            available: true,
+            discountedPrice: t.price * 0.85
+          }))
+        }));
+        
+        setDiagnosticCenters(centersWithTests);
+      } catch (err) {
+        console.error('Failed to fetch diagnostic centers:', err);
+        setError('Failed to load diagnostic centers. Using sample data.');
+        // Fallback to sample data
+        const fallbackCenters = [
     {
-      id: 1,
-      name: 'Popular Diagnostic Centre',
-      area: 'Dhanmondi',
-      address: 'House 16, Road 2, Dhanmondi, Dhaka 1205',
-      distance: 1.2,
-      rating: 4.8,
-      phone: '+880 2-9675475',
-      hours: '7:00 AM - 11:00 PM',
-      discount: 15,
-      homeSample: true,
-      homeSampleFee: 200,
-      tests: recommendedTests.map(t => ({ ...t, available: true, discountedPrice: t.price * 0.85 })),
-      allTests: [
-        { name: 'Complete Blood Count (CBC)', price: 400, discountedPrice: 340, available: true },
-        { name: 'Blood Sugar (Fasting)', price: 200, discountedPrice: 170, available: true },
-        { name: 'Lipid Profile', price: 800, discountedPrice: 680, available: true },
-        { name: 'Liver Function Test', price: 1200, discountedPrice: 1020, available: true },
-      ],
-    },
-    {
-      id: 2,
-      name: 'Ibn Sina Diagnostic Centre',
-      area: 'Dhanmondi',
-      address: 'House 48, Road 9A, Dhanmondi, Dhaka 1209',
-      distance: 1.5,
-      rating: 4.7,
-      phone: '+880 2-8616645',
-      hours: '24 Hours',
-      discount: 20,
-      homeSample: true,
-      homeSampleFee: 150,
-      tests: recommendedTests.map(t => ({ ...t, available: true, discountedPrice: t.price * 0.80 })),
-      allTests: [
-        { name: 'Complete Blood Count (CBC)', price: 450, discountedPrice: 360, available: true },
-        { name: 'X-Ray (Chest)', price: 600, discountedPrice: 480, available: true },
-        { name: 'ECG', price: 500, discountedPrice: 400, available: true },
-      ],
-    },
-    {
-      id: 3,
-      name: 'Square Diagnostic Centre',
-      area: 'Panthapath',
-      address: 'West Panthapath, Dhaka 1215',
-      distance: 2.8,
-      rating: 4.9,
-      phone: '+880 2-8159457',
-      hours: '8:00 AM - 10:00 PM',
-      discount: 10,
-      homeSample: true,
-      homeSampleFee: 250,
-      tests: recommendedTests.map(t => ({ ...t, available: true, discountedPrice: t.price * 0.90 })),
-      allTests: [
-        { name: 'CT Scan (Head)', price: 3500, discountedPrice: 3150, available: true },
-        { name: 'MRI', price: 6000, discountedPrice: 5400, available: true },
-        { name: 'Ultrasound', price: 1200, discountedPrice: 1080, available: true },
-      ],
-    },
-    {
-      id: 4,
-      name: 'Labaid Diagnostic',
-      area: 'Gulshan',
-      address: 'House 1, Road 27, Gulshan 1, Dhaka 1212',
-      distance: 3.5,
-      rating: 4.6,
-      phone: '+880 2-8836000',
-      hours: '24 Hours',
-      discount: 12,
-      homeSample: true,
-      homeSampleFee: 180,
-      tests: recommendedTests.map(t => ({ ...t, available: true, discountedPrice: t.price * 0.88 })),
-      allTests: [
-        { name: 'Thyroid Function Test', price: 1500, discountedPrice: 1320, available: true },
-        { name: 'Kidney Function Test', price: 1000, discountedPrice: 880, available: true },
-      ],
-    },
-    {
-      id: 5,
-      name: 'Central Hospital Diagnostic',
-      area: 'Green Road',
-      address: 'Green Road, Dhanmondi, Dhaka 1205',
-      distance: 0.9,
-      rating: 4.5,
-      phone: '+880 2-9611888',
-      hours: '8:00 AM - 8:00 PM',
-      discount: 18,
-      homeSample: false,
-      homeSampleFee: null,
-      tests: recommendedTests.map(t => ({ ...t, available: Math.random() > 0.1, discountedPrice: t.price * 0.82 })),
-      allTests: [
-        { name: 'Stool Test', price: 350, discountedPrice: 287, available: true },
-        { name: 'Urine Test', price: 250, discountedPrice: 205, available: true },
-      ],
-    },
-  ];
+        // Fallback to sample data
+        const fallbackCenters = [
+          {
+            id: 1,
+            name: 'Popular Diagnostic Centre',
+            area: 'Dhanmondi',
+            address: 'House 16, Road 2, Dhanmondi, Dhaka 1205',
+            distance: 1.2,
+            rating: 4.8,
+            phone: '+880 2-9675475',
+            hours: '7:00 AM - 11:00 PM',
+            discount: 15,
+            homeSample: true,
+            homeSampleFee: 200,
+            tests: recommendedTests.map(t => ({ ...t, available: true, discountedPrice: t.price * 0.85 })),
+          },
+        ];
+        setDiagnosticCenters(fallbackCenters);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchCenters();
+  }, [recommendedTests]);
 
   const areas = ['all', 'Dhanmondi', 'Gulshan', 'Panthapath', 'Green Road'];
 
@@ -172,8 +139,24 @@ export function DiagnosticCenters({ recommendedTests }: DiagnosticCentersProps) 
         </div>
       )}
 
+      {/* Loading State */}
+      {loading && (
+        <div className="flex justify-center items-center py-12">
+          <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
+          <span className="ml-3 text-gray-600">Loading diagnostic centers...</span>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-6">
+          <p className="text-yellow-800">{error}</p>
+        </div>
+      )}
+
       {/* Diagnostic Centers List */}
-      <div className="space-y-6">
+      {!loading && (
+        <div className="space-y-6">
         {filteredCenters.map((center) => {
           const recommendedAvailable = center.tests.filter(t => t.available).length;
           const totalRecommended = center.tests.length;
@@ -306,13 +289,14 @@ export function DiagnosticCenters({ recommendedTests }: DiagnosticCentersProps) 
             </div>
           );
         })}
-      </div>
 
-      {filteredCenters.length === 0 && (
-        <div className="text-center py-12">
-          <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600">No diagnostic centers found matching your search criteria</p>
-        </div>
+        {filteredCenters.length === 0 && !loading && (
+          <div className="text-center py-12">
+            <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600">No diagnostic centers found matching your search criteria</p>
+          </div>
+        )}
+      </div>
       )}
     </div>
   );

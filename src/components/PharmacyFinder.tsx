@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { MapPin, Phone, Clock, Package, Truck, Star, Search, Filter, ChevronDown } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { MapPin, Phone, Clock, Package, Truck, Star, Search, Filter, ChevronDown, Loader2 } from 'lucide-react';
+import { pharmacies as pharmaciesAPI } from '../services/mongoApi';
 
 interface PharmacyFinderProps {
   recommendedMedicines: any[];
@@ -9,74 +10,80 @@ export function PharmacyFinder({ recommendedMedicines }: PharmacyFinderProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedArea, setSelectedArea] = useState('all');
   const [sortBy, setSortBy] = useState('distance');
+  const [pharmacies, setPharmacies] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const pharmacies = [
+  // Fetch pharmacies from database
+  useEffect(() => {
+    const fetchPharmacies = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await pharmaciesAPI.getAll(1, 100);
+        const fetchedPharmacies = response.pharmacies || [];
+        
+        // Add recommended medicines stock to each pharmacy
+        const pharmaciesWithStock = fetchedPharmacies.map((p: any) => ({
+          ...p,
+          area: p.location?.area || 'Unknown',
+          hours: p.operatingHours 
+            ? `${p.operatingHours.weekday?.open || '8:00 AM'} - ${p.operatingHours.weekday?.close || '10:00 PM'}`
+            : '9:00 AM - 9:00 PM',
+          distance: p.distance || Math.random() * 10,
+          stock: recommendedMedicines.map(m => ({
+            ...m,
+            available: Math.random() > 0.2,
+            quantity: Math.floor(Math.random() * 50) + 10
+          }))
+        }));
+        
+        setPharmacies(pharmaciesWithStock);
+      } catch (err) {
+        console.error('Failed to fetch pharmacies:', err);
+        setError('Failed to load pharmacies. Using sample data.');
+        // Fallback to sample data
+        const fallbackPharmacies = [
     {
       id: 1,
       name: 'Lazz Pharma',
-      area: 'Dhanmondi',
-      address: 'House 12, Road 4, Dhanmondi, Dhaka',
-      distance: 0.8,
-      rating: 4.7,
-      phone: '+880 1711-123456',
-      hours: '8:00 AM - 11:00 PM',
-      delivery: true,
-      deliveryTime: '30 mins',
-      stock: recommendedMedicines.map(m => ({ ...m, available: true, quantity: Math.floor(Math.random() * 50) + 10 })),
-    },
-    {
-      id: 2,
-      name: 'Apollo Pharmacy',
-      area: 'Gulshan',
-      address: 'Plot 81, Road 12, Gulshan 1, Dhaka',
-      distance: 2.3,
-      rating: 4.8,
-      phone: '+880 1722-234567',
-      hours: '24 Hours',
-      delivery: true,
-      deliveryTime: '45 mins',
-      stock: recommendedMedicines.map(m => ({ ...m, available: Math.random() > 0.2, quantity: Math.floor(Math.random() * 30) + 5 })),
-    },
-    {
-      id: 3,
-      name: 'Square Pharmaceuticals Outlet',
-      area: 'Uttara',
-      address: 'Sector 7, Road 9, Uttara, Dhaka',
-      distance: 5.1,
-      rating: 4.6,
-      phone: '+880 1733-345678',
-      hours: '9:00 AM - 10:00 PM',
-      delivery: true,
-      deliveryTime: '60 mins',
-      stock: recommendedMedicines.map(m => ({ ...m, available: true, quantity: Math.floor(Math.random() * 100) + 20 })),
-    },
-    {
-      id: 4,
-      name: 'Beximco Pharma Shop',
-      area: 'Mirpur',
-      address: 'Section 10, Avenue 7, Mirpur, Dhaka',
-      distance: 3.7,
-      rating: 4.5,
-      phone: '+880 1744-456789',
-      hours: '8:00 AM - 9:00 PM',
-      delivery: false,
-      deliveryTime: null,
-      stock: recommendedMedicines.map(m => ({ ...m, available: Math.random() > 0.3, quantity: Math.floor(Math.random() * 40) + 15 })),
-    },
-    {
-      id: 5,
-      name: 'Healthcare Pharmacy',
-      area: 'Banani',
-      address: 'Road 11, Block C, Banani, Dhaka',
-      distance: 1.9,
-      rating: 4.9,
-      phone: '+880 1755-567890',
-      hours: '24 Hours',
-      delivery: true,
-      deliveryTime: '35 mins',
-      stock: recommendedMedicines.map(m => ({ ...m, available: true, quantity: Math.floor(Math.random() * 60) + 25 })),
-    },
-  ];
+        // Fallback to sample data
+        const fallbackPharmacies = [
+          {
+            id: 1,
+            name: 'Lazz Pharma',
+            area: 'Dhanmondi',
+            address: 'House 12, Road 4, Dhanmondi, Dhaka',
+            distance: 0.8,
+            rating: 4.7,
+            phone: '+880 1711-123456',
+            hours: '8:00 AM - 11:00 PM',
+            delivery: true,
+            deliveryTime: '30 mins',
+            stock: recommendedMedicines.map(m => ({ ...m, available: true, quantity: Math.floor(Math.random() * 50) + 10 })),
+          },
+          {
+            id: 2,
+            name: 'Apollo Pharmacy',
+            area: 'Gulshan',
+            address: 'Plot 81, Road 12, Gulshan 1, Dhaka',
+            distance: 2.3,
+            rating: 4.8,
+            phone: '+880 1722-234567',
+            hours: '24 Hours',
+            delivery: true,
+            deliveryTime: '45 mins',
+            stock: recommendedMedicines.map(m => ({ ...m, available: Math.random() > 0.2, quantity: Math.floor(Math.random() * 30) + 5 })),
+          },
+        ];
+        setPharmacies(fallbackPharmacies);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchPharmacies();
+  }, [recommendedMedicines]);
 
   const areas = ['all', 'Dhanmondi', 'Gulshan', 'Uttara', 'Mirpur', 'Banani'];
 
@@ -152,8 +159,24 @@ export function PharmacyFinder({ recommendedMedicines }: PharmacyFinderProps) {
         </div>
       )}
 
+      {/* Loading State */}
+      {loading && (
+        <div className="flex justify-center items-center py-12">
+          <Loader2 className="w-12 h-12 text-blue-500 animate-spin" />
+          <span className="ml-3 text-gray-600">Loading pharmacies...</span>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-6">
+          <p className="text-yellow-800">{error}</p>
+        </div>
+      )}
+
       {/* Pharmacy List */}
-      <div className="space-y-6">
+      {!loading && (
+        <div className="space-y-6">
         {filteredPharmacies.map((pharmacy) => {
           const availableCount = pharmacy.stock.filter(m => m.available).length;
           const totalCount = pharmacy.stock.length;
@@ -259,13 +282,14 @@ export function PharmacyFinder({ recommendedMedicines }: PharmacyFinderProps) {
             </div>
           );
         })}
+        
+        {filteredPharmacies.length === 0 && !loading && (
+          <div className="text-center py-12">
+            <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600">No pharmacies found matching your search criteria</p>
+          </div>
+        )}
       </div>
-
-      {filteredPharmacies.length === 0 && (
-        <div className="text-center py-12">
-          <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600">No pharmacies found matching your search criteria</p>
-        </div>
       )}
     </div>
   );
