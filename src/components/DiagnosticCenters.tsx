@@ -40,7 +40,15 @@ export function DiagnosticCenters({ recommendedTests }: DiagnosticCentersProps) 
             ...t,
             available: true,
             discountedPrice: t.price * 0.85
-          }))
+          })),
+          allTests: [
+            { name: 'Complete Blood Count (CBC)', price: 800, discountedPrice: 680 },
+            { name: 'Lipid Profile', price: 1200, discountedPrice: 1020 },
+            { name: 'Liver Function Test', price: 1500, discountedPrice: 1275 },
+            { name: 'Kidney Function Test', price: 1400, discountedPrice: 1190 },
+            { name: 'Thyroid Profile', price: 1800, discountedPrice: 1530 },
+            { name: 'Blood Sugar (Fasting)', price: 300, discountedPrice: 255 },
+          ]
         }));
         
         setDiagnosticCenters(centersWithTests);
@@ -62,6 +70,14 @@ export function DiagnosticCenters({ recommendedTests }: DiagnosticCentersProps) 
             homeSample: true,
             homeSampleFee: 200,
             tests: safeRecommendedTests.map(t => ({ ...t, available: true, discountedPrice: t.price * 0.85 })),
+            allTests: [
+              { name: 'Complete Blood Count (CBC)', price: 800, discountedPrice: 680 },
+              { name: 'Lipid Profile', price: 1200, discountedPrice: 1020 },
+              { name: 'Liver Function Test', price: 1500, discountedPrice: 1275 },
+              { name: 'Kidney Function Test', price: 1400, discountedPrice: 1190 },
+              { name: 'Thyroid Profile', price: 1800, discountedPrice: 1530 },
+              { name: 'Blood Sugar (Fasting)', price: 300, discountedPrice: 255 },
+            ],
           },
         ];
         setDiagnosticCenters(fallbackCenters);
@@ -158,8 +174,9 @@ export function DiagnosticCenters({ recommendedTests }: DiagnosticCentersProps) 
       {!loading && (
         <div className="space-y-6">
         {filteredCenters.map((center) => {
-          const recommendedAvailable = center.tests.filter(t => t.available).length;
-          const totalRecommended = center.tests.length;
+          const centerTests = center.tests || [];
+          const recommendedAvailable = centerTests.filter(t => t.available).length;
+          const totalRecommended = centerTests.length;
 
           return (
             <div key={center.id} className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow">
@@ -215,11 +232,11 @@ export function DiagnosticCenters({ recommendedTests }: DiagnosticCentersProps) 
                 </div>
 
                 {/* Recommended Tests */}
-                {center.tests.length > 0 && (
+                {centerTests.length > 0 && (
                   <div className="mt-4 pt-4 border-t border-gray-200">
                     <h4 className="text-gray-900 mb-3">AI-Recommended Tests at This Center</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {center.tests.map((test, idx) => (
+                      {centerTests.map((test, idx) => (
                         <div
                           key={idx}
                           className={`p-3 rounded-lg border ${
@@ -251,23 +268,25 @@ export function DiagnosticCenters({ recommendedTests }: DiagnosticCentersProps) 
                 )}
 
                 {/* All Available Tests */}
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <h4 className="text-gray-900 mb-3">Other Popular Tests</h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                    {center.allTests.map((test, idx) => (
-                      <div key={idx} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-                        <p className="text-gray-900 mb-1">{test.name}</p>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-gray-400 line-through">৳{test.price}</p>
-                            <p className="text-gray-900">৳{test.discountedPrice}</p>
+                {center.allTests && center.allTests.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <h4 className="text-gray-900 mb-3">Other Popular Tests</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                      {center.allTests.map((test, idx) => (
+                        <div key={idx} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                          <p className="text-gray-900 mb-1">{test.name}</p>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-gray-400 line-through">৳{test.price}</p>
+                              <p className="text-gray-900">৳{test.discountedPrice}</p>
+                            </div>
+                            <Tag className="w-4 h-4 text-green-600" />
                           </div>
-                          <Tag className="w-4 h-4 text-green-600" />
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Action Buttons */}
                 <div className="mt-4 flex flex-wrap gap-3">
